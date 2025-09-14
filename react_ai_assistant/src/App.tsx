@@ -4,6 +4,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { useState } from "react";
 import { User } from "stream-chat";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { SignIn } from "@/components/auth/SignIn";
+import { SignUp } from "@/components/auth/SignUp";
 
 const USER_STORAGE_KEY = "chat-ai-app-user";
 
@@ -34,9 +37,12 @@ function App() {
         {user ? (
           <AuthenticatedApp user={user} onLogout={handleLogout} />
         ) : (
-          <Login onLogin={handleUserLogin} />
+          <Routes>
+            <Route path="/signin" element={<SignIn />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="/" element={<Navigate to="/signin" replace />} />
+          </Routes>
         )}
-
         <Toaster />
       </div>
     </ThemeProvider>

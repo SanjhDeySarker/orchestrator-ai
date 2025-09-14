@@ -23,6 +23,7 @@ import { ChatInput, ChatInputProps } from "./chat-input";
 import ChatMessage from "./chat-message";
 import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import React from "react";
 
 interface ChatInterfaceProps {
   onToggleSidebar: () => void;
@@ -228,6 +229,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const [inputText, setInputText] = useState("");
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+    // Reset inputText when channel changes
+    React.useEffect(() => {
+      setInputText("");
+    }, [channel?.id]);
+
     const isGenerating =
       aiState === "AI_STATE_THINKING" ||
       aiState === "AI_STATE_GENERATING" ||
@@ -252,12 +258,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     return (
       <ChatInput
+        className="!p-4"
         sendMessage={sendMessage}
         value={inputText}
         onValueChange={setInputText}
         textareaRef={textareaRef}
         showPromptToolbar={true}
-        className="!p-4"
         isGenerating={isGenerating}
         onStopGenerating={handleStopGenerating}
       />

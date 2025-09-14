@@ -4,10 +4,11 @@ import { cn } from "../lib/utlis";
 import { ArrowRight, Square, X } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { WritingPromptsToolbar } from "./writing-prompts-toolbar";
+import { LocalMessage, Message, SendMessageOptions } from "stream-chat";
 
 export interface ChatInputProps {
   className?: string;
-  sendMessage: (message: { text: string }) => Promise<void> | void;
+  sendMessage: (message: { text: string } | { localMessage: LocalMessage; message: Message; options?: SendMessageOptions }) => Promise<void> | string;
   isGenerating?: boolean;
   onStopGenerating?: () => void;
   placeholder?: string;

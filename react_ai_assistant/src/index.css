@@ -1,8 +1,6 @@
 @import "stream-chat-react/dist/css/v2/index.css";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @layer base {
   html {
@@ -122,7 +120,7 @@
     --str-chat__avatar-text-color: hsl(var(--secondary-foreground));
   }
 
-  .str-chat__theme-dark {
+   .str-chat__theme-dark {
     --str-chat__primary-color: hsl(var(--primary));
     --str-chat__primary-color-alpha-15: hsl(var(--primary) / 0.15);
     --str-chat__active-primary-color: hsl(var(--primary));
@@ -143,7 +141,7 @@
     --str-chat__input-background-color: hsl(var(--input));
     --str-chat__avatar-background-color: hsl(var(--secondary));
     --str-chat__avatar-text-color: hsl(var(--secondary-foreground));
-  }
+  } 
 
   /* Chat app specific styles */
   /* These are now handled by the Stream theme, but we can keep them for overrides if needed */
