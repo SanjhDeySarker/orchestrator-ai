@@ -1,14 +1,44 @@
+import {signup} from './authentication';
+import {signin} from "./authentication";
 import cors from "cors";
 import "dotenv/config";
 import express from "express";
 import { createAgent } from "./agents/createAgent";
 import { AgentPlatform, AIAgent } from "./agents/types";
 import { apikey, serverClient } from "./serverClient";
+import { MongoClient } from 'mongodb';
+
+const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017';
+const mongoClient = new MongoClient(mongoUri);
+ mongoClient.connect().then(() => {
+console.log ("Connected to MongoDB");
+mongoClient.db('orchestrator_ai').collection('test').insertOne({test: 'data'}).then(() => {
+console.log("MongoDB write test succeeded");
+})
+ }).catch(err => {
+console.error("Failed to connect to MongoDB", err);
+ });
+
+ export { mongoClient };
 
 const app = express();
-app.use(express.json());
-app.use(cors({ origin: "*" }));
 
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Content-Type validation middleware
+app.use((req, res, next) => {
+  if (req.method === 'POST' && !req.is('application/json')) {
+    return res.status(415).json({
+      error: 'Unsupported Media Type. Content-Type must be application/json'
+    });
+  }
+  next();
+});
+app.post("/signup", signup);
+app.post("/signin", signin);
 // Map to store the AI Agent instances
 // [user_id string]: AI Agent
 const aiAgentCache = new Map<string, AIAgent>();
