@@ -59,7 +59,6 @@ const AuthenticatedCore = ({ user, onLogout }: AuthenticatedAppProps) => {
     try {
       // 1. Create a new channel with the user as the only member
       const newChannel = client.channel("messaging", uuidv4(), {
-        name: message.text.substring(0, 50),
         members: [user.id],
       });
       await newChannel.watch();

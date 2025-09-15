@@ -41,7 +41,7 @@ export function SignIn() {
       localStorage.setItem('user', JSON.stringify(data.user));
       
       console.log('Sign in successful:', data);
-      navigate('/dashboard');
+      navigate('/chat');
     } catch (err) {
       setError(err.message || 'An error occurred during sign in');
       console.error('Sign in error:', err);
