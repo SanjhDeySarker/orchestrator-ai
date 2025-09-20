@@ -1,5 +1,5 @@
 import { apikey, apiSecret, serverClient } from "../serverClient";
-import { OpenAIAgent } from "./openai/OpenAIAgent";
+import { OpenAIAgent } from "./openai/openaiagent";
 import { AgentPlatform, AIAgent } from "./types";
 
 export const createAgent = async (
