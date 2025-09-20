@@ -1,4 +1,4 @@
-import { ReactNode, useCallback } from "react";
+import { ReactNode, useCallback, useState } from "react";
 import { User } from "stream-chat";
 import { Chat, useCreateChatClient } from "stream-chat-react";
 import { Navigate } from "react-router-dom";
@@ -21,8 +21,14 @@ if (!apiKey) {
 export const ChatProvider = ({ children }: Omit<ChatProviderProps, 'user'>) => {
   const { user } = useAuth();
   const { theme } = useTheme();
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   if (!user) {
+    return <Navigate to="/signin" />;
+  }
+
+  if (!user.id) {
+    console.error("ChatProvider: User missing required ID field", user);
     return <Navigate to="/signin" />;
   }
 
@@ -34,9 +40,12 @@ export const ChatProvider = ({ children }: Omit<ChatProviderProps, 'user'>) => {
    * - Connection is re-established after network issues
    */
   const tokenProvider = useCallback(async () => {
-    if (!user) {
-      throw new Error("User not available");
+    if (!user || !user.id) {
+      console.error("TokenProvider: User or user.id not available", { user });
+      throw new Error("User not available for token generation");
     }
+
+    console.log("TokenProvider: Fetching token for user", user.id);
 
     try {
       const response = await fetch(`${backendUrl}/token`, {
@@ -49,16 +58,23 @@ export const ChatProvider = ({ children }: Omit<ChatProviderProps, 'user'>) => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to fetch token: ${errorText}`);
+        console.error("TokenProvider: Backend returned error", response.status, errorText);
+        throw new Error(`Failed to fetch token (${response.status}): ${errorText}`);
       }
 
-      const { token } = await response.json();
-      return token;
+      const data = await response.json();
+      if (!data.token) {
+        console.error("TokenProvider: No token in response", data);
+        throw new Error("No token received from backend");
+      }
+
+      console.log("TokenProvider: Successfully fetched token");
+      return data.token;
     } catch (err) {
-      console.error("Error fetching token:", err);
+      console.error("TokenProvider: Error fetching token:", err);
       throw err;
     }
-  }, [user]);
+  }, [user, backendUrl]);
 
   /**
    * Create the Stream Chat client with automatic token management.
@@ -71,13 +87,48 @@ export const ChatProvider = ({ children }: Omit<ChatProviderProps, 'user'>) => {
   const client = useCreateChatClient({
     apiKey,
     tokenOrProvider: tokenProvider,
-    userData: user,
+    userData: {
+      id: user.id,
+      name: user.name || user.email || `User ${user.id}`,
+    },
+    onError: (error) => {
+      console.error("ChatProvider: Stream Chat client error:", error);
+      setConnectionError(error.message);
+    },
   });
+
+  // Show error if connection failed
+  if (connectionError) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <p className="text-lg text-destructive mb-2">Connection Error</p>
+          <p className="text-sm text-muted-foreground">{connectionError}</p>
+          <button 
+            onClick={() => {
+              setConnectionError(null);
+              window.location.reload();
+            }}
+            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading screen while client is being initialized
   if (!client) {
+    console.log("ChatProvider: Client not yet initialized, showing loading screen");
     return <LoadingScreen />;
   }
+
+  console.log("ChatProvider: Client initialized successfully", {
+    clientConnected: client.isOnline,
+    userId: client.userID,
+    userName: user.name
+  });
 
   return (
     <Chat

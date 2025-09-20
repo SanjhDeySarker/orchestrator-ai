@@ -54,20 +54,36 @@ const AuthenticatedCore = ({ user, onLogout }: AuthenticatedAppProps) => {
   }, [channelId, client, setActiveChannel]);
 
   const handleNewChatMessage = async (message: { text: string }) => {
-    if (!user.id) return;
+    if (!user.id) {
+      console.error("handleNewChatMessage: No user ID available");
+      return;
+    }
+
+    console.log("handleNewChatMessage: Creating new chat with message:", message.text);
 
     try {
       // 1. Create a new channel with the user as the only member
-      const newChannel = client.channel("messaging", uuidv4(), {
+      const channelId = uuidv4();
+      const newChannel = client.channel("messaging", channelId, {
         members: [user.id],
+        created_by_id: user.id,
       });
+      
+      console.log("handleNewChatMessage: Watching channel", channelId);
       await newChannel.watch();
 
-      // 2. Set up event listener for when AI agent is added as member
-      const memberAddedPromise = new Promise<void>((resolve) => {
+      // 2. Set up event listener for when AI agent is added as member (with timeout)
+      const memberAddedPromise = new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          unsubscribe.unsubscribe();
+          reject(new Error("Timeout waiting for AI agent to join"));
+        }, 10000); // 10 second timeout
+
         const unsubscribe = newChannel.on("member.added", (event) => {
+          console.log("handleNewChatMessage: Member added:", event.member?.user?.id);
           // Check if the added member is the AI agent (not the current user)
           if (event.member?.user?.id && event.member.user.id !== user.id) {
+            clearTimeout(timeout);
             unsubscribe.unsubscribe();
             resolve();
           }
@@ -75,30 +91,38 @@ const AuthenticatedCore = ({ user, onLogout }: AuthenticatedAppProps) => {
       });
 
       // 3. Connect the AI agent
+      console.log("handleNewChatMessage: Starting AI agent for channel", channelId);
       const response = await fetch(`${backendUrl}/start-ai-agent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          channel_id: newChannel.id,
+          channel_id: channelId,
           channel_type: "messaging",
         }),
       });
 
       if (!response.ok) {
-        throw new Error("AI agent failed to join the chat.");
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        console.error("handleNewChatMessage: AI agent start failed:", errorData);
+        throw new Error(`AI agent failed to join: ${errorData.error || response.statusText}`);
       }
 
       // 4. Set the channel as active and navigate
       setActiveChannel(newChannel);
-      navigate(`/chat/${newChannel.id}`);
+      navigate(`/chat/${channelId}`);
 
       // 5. Wait for AI agent to be added as member, then send message
+      console.log("handleNewChatMessage: Waiting for AI agent to join...");
       await memberAddedPromise;
+      
+      console.log("handleNewChatMessage: Sending initial message...");
       await newChannel.sendMessage(message);
+      console.log("handleNewChatMessage: Message sent successfully");
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Something went wrong";
-      console.error("Error creating new chat:", errorMessage);
+      console.error("handleNewChatMessage: Error creating new chat:", errorMessage);
+      // TODO: Show user-friendly error message
     }
   };
 

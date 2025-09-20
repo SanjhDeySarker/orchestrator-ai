@@ -93,7 +93,8 @@ export class OpenAIResponseHandler {
         if (toolOutputs.length > 0) {
           currentStream = this.openai.beta.threads.runs.submitToolOutputsStream(
             this.openAiThread.id,
-            { thread_id :this.run_id,tool_outputs: toolOutputs }
+            this.run_id,
+            { tool_outputs: toolOutputs }
           );
           toolOutputs = []; // Reset tool outputs
         }
@@ -128,7 +129,7 @@ export class OpenAIResponseHandler {
     try {
       await this.openai.beta.threads.runs.cancel(
         this.openAiThread.id,
-        {thread_id:this.run_id}
+        this.run_id
       );
     } catch (e) {
       console.error("Error cancelling run", e);

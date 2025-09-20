@@ -22,7 +22,8 @@ export function SignIn() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3000/signin', {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+      const response = await fetch(`${backendUrl}/signin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -32,8 +33,13 @@ export function SignIn() {
 
       if (!response.ok) throw new Error(data.error || 'Sign in failed');
 
+      // Ensure user has required id field for Stream Chat
+      if (!data.user || !data.user.id) {
+        throw new Error('Invalid user data received from server');
+      }
+      
       login(data.user); // Set user in AuthProvider
-      navigate('/chat');
+      navigate('/');
     } catch (err: any) {
       setError(err.message || 'An error occurred during sign in');
     } finally {

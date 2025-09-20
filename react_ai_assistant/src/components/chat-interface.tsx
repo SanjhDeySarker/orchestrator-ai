@@ -251,8 +251,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [channel]);
 
   const startAIAgent = async (channelId: string) => {
-    if (isLoading || agentStatus.status === "connected") return;
+    if (isLoading || agentStatus.status === "connected") {
+      console.log("ChatInterface: Skipping AI agent start", { isLoading, status: agentStatus.status });
+      return;
+    }
 
+    console.log("ChatInterface: Starting AI agent for channel", channelId);
     setIsLoading(true);
     setError(null);
 
@@ -270,25 +274,33 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to start AI agent");
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        console.error("ChatInterface: AI agent start failed", response.status, errorData);
+        throw new Error(errorData.error || `Failed to start AI agent (${response.status})`);
       }
 
       const data = await response.json();
-      console.log("AI Agent started successfully:", data);
+      console.log("ChatInterface: AI Agent started successfully:", data);
+      
+      // Force refresh the agent status after starting
+      setTimeout(() => {
+        agentStatus.checkStatus();
+      }, 1000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start AI agent");
-      console.error("Error starting AI agent:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to start AI agent";
+      setError(errorMessage);
+      console.error("ChatInterface: Error starting AI agent:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (channel?.id && !channelLoading && !channelError) {
+    if (channel?.id && !channelLoading && !channelError && agentStatus.status === "disconnected") {
+      console.log("ChatInterface: Starting AI agent for channel", channel.id);
       startAIAgent(channel.id);
     }
-  }, [channel?.id, channelLoading, channelError]);
+  }, [channel?.id, channelLoading, channelError, agentStatus.status]);
 
   if (channelLoading) {
     return (
@@ -329,7 +341,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       aiState === "AI_STATE_GENERATING" ||
       aiState === "AI_STATE_EXTERNAL_SOURCES";
 
-    console.log("aiState", aiState);
+    console.log("ChannelMessageInput: aiState", aiState, "channel", channel?.id);
 
     const handleStopGenerating = () => {
       if (channel) {
@@ -346,10 +358,33 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }
     };
 
+    const handleSendMessage = async (message: { text: string }) => {
+      if (!channel) {
+        console.error("ChannelMessageInput: No channel available for sending message");
+        return;
+      }
+
+      console.log("ChannelMessageInput: Sending message:", message.text);
+      
+      try {
+        await sendMessage(message);
+        console.log("ChannelMessageInput: Message sent successfully");
+      } catch (error) {
+        console.error("ChannelMessageInput: Error sending message:", error);
+        // Try direct channel send as fallback
+        try {
+          await channel.sendMessage({ text: message.text });
+          console.log("ChannelMessageInput: Message sent via fallback method");
+        } catch (fallbackError) {
+          console.error("ChannelMessageInput: Fallback send also failed:", fallbackError);
+        }
+      }
+    };
+
     return (
       <ChatInput
         className="!p-4"
-        sendMessage={sendMessage}
+        sendMessage={handleSendMessage}
         value={inputText}
         onValueChange={setInputText}
         textareaRef={textareaRef}

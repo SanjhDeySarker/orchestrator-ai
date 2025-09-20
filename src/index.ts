@@ -8,7 +8,7 @@ import { AgentPlatform, AIAgent } from "./agents/types";
 import { apikey, serverClient } from "./serverClient";
 import { MongoClient } from 'mongodb';
 
-const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017';
+const mongoUri = 'mongodb://localhost:27017';
 const mongoClient = new MongoClient(mongoUri);
  mongoClient.connect().then(() => {
 console.log ("Connected to MongoDB");

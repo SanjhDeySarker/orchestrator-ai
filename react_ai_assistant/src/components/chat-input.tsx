@@ -8,7 +8,7 @@ import { LocalMessage, Message, SendMessageOptions } from "stream-chat";
 
 export interface ChatInputProps {
   className?: string;
-  sendMessage: (message: { text: string } | { localMessage: LocalMessage; message: Message; options?: SendMessageOptions }) => Promise<void> | string;
+  sendMessage: (message: { text: string }) => Promise<void> | void;
   isGenerating?: boolean;
   onStopGenerating?: () => void;
   placeholder?: string;
@@ -58,20 +58,39 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!value.trim() || isLoading || isGenerating || !sendMessage) return;
+    if (!value.trim() || isLoading || isGenerating || !sendMessage) {
+      console.log("ChatInput: Submit blocked", { 
+        hasValue: !!value.trim(), 
+        isLoading, 
+        isGenerating, 
+        hasSendMessage: !!sendMessage 
+      });
+      return;
+    }
 
+    console.log("ChatInput: Submitting message:", value.trim());
     setIsLoading(true);
+    
     try {
-      await sendMessage({
+      const result = sendMessage({
         text: value.trim(),
       });
+      
+      // Handle both sync and async sendMessage functions
+      if (result && typeof result.then === 'function') {
+        await result;
+      }
+      
+      console.log("ChatInput: Message submission successful");
       onValueChange("");
+      
       // Reset textarea height
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("ChatInput: Error sending message:", error);
+      // Don't clear the input on error so user can retry
     } finally {
       setIsLoading(false);
     }
