@@ -1,4 +1,5 @@
 import { useAIAgentStatus } from "@/hooks/use-ai-agent-status";
+import { useEffect, useRef, useState } from "react";
 import {
   Bot,
   Briefcase,
@@ -8,7 +9,6 @@ import {
   MessageSquare,
   Sparkles,
 } from "lucide-react";
-import { useRef, useState } from "react";
 import {
   Channel,
   MessageList,
@@ -216,11 +216,101 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onNewChatMessage,
   backendUrl,
 }) => {
-  const { channel } = useChatContext();
+  const { channel, client } = useChatContext();
+  const [channelLoading, setChannelLoading] = useState(true);
+  const [channelError, setChannelError] = useState<string | null>(null);
   const agentStatus = useAIAgentStatus({
     channelId: channel?.id ?? null,
     backendUrl,
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const initializeChannel = async () => {
+      try {
+        setChannelLoading(true);
+        if (!channel) {
+          setChannelError(null);
+          return;
+        }
+
+        await channel.watch();
+        setChannelError(null);
+      } catch (err) {
+        console.error("Error initializing channel:", err);
+        setChannelError(
+          err instanceof Error ? err.message : "Failed to initialize channel"
+        );
+      } finally {
+        setChannelLoading(false);
+      }
+    };
+
+    initializeChannel();
+  }, [channel]);
+
+  const startAIAgent = async (channelId: string) => {
+    if (isLoading || agentStatus.status === "connected") return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${backendUrl}/start-ai-agent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          channel_id: channelId,
+          channel_type: "messaging",
+        }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to start AI agent");
+      }
+
+      const data = await response.json();
+      console.log("AI Agent started successfully:", data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start AI agent");
+      console.error("Error starting AI agent:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (channel?.id && !channelLoading && !channelError) {
+      startAIAgent(channel.id);
+    }
+  }, [channel?.id, channelLoading, channelError]);
+
+  if (channelLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-sm text-muted-foreground">Initializing chat...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (channelError) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center text-destructive">
+          <p>Failed to load chat</p>
+          <p className="text-sm text-muted-foreground mt-2">{channelError}</p>
+        </div>
+      </div>
+    );
+  }
 
   const ChannelMessageInputComponent = () => {
     const { sendMessage } = useChannelActionContext();
@@ -268,7 +358,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onStopGenerating={handleStopGenerating}
       />
     );
- };
+  };
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -294,7 +384,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
             <div>
               <h2 className="text-sm font-semibold text-foreground">
-                {((channel?.data as { name?: string })?.name) || "New Writing Session"}
+                {((channel?.data as { name?: string })?.name) ||
+                  "New Writing Session"}
               </h2>
               <p className="text-xs text-muted-foreground">
                 AI Writing Assistant • Always improving
@@ -305,8 +396,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {channel?.id && (
           <AIAgentControl
             status={agentStatus.status}
-            loading={agentStatus.loading}
-            error={agentStatus.error}
+            loading={isLoading || agentStatus.loading}
+            error={error || agentStatus.error}
             toggleAgent={agentStatus.toggleAgent}
             checkStatus={agentStatus.checkStatus}
             channelId={channel.id}

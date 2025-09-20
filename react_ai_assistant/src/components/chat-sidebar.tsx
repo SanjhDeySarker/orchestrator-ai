@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { StreamChat } from 'stream-chat';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,6 +65,7 @@ export const ChatSidebar = ({
   const { user } = client;
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
+  const API_KEY = import.meta.env.VITE_STREAM_API_KEY as string;
 
   if (!user) return null;
 
@@ -73,6 +75,21 @@ export const ChatSidebar = ({
   };
   const sort: ChannelSort = { last_message_at: -1 };
   const options = { state: true, presence: true, limit: 10 };
+  const chatClient = StreamChat.getInstance(API_KEY);
+  const handleLogout = async () => {
+  try {
+    // 1. Disconnect from Stream Chat
+    await chatClient.disconnectUser();
+
+    // 2. Clear local storage
+    localStorage.removeItem("token");
+
+    // 3. Reset user state
+    window.location.reload();
+  } catch (err) {
+    console.error("Logout failed:", err);
+  }
+};
 
   return (
     <>
@@ -189,7 +206,7 @@ export const ChatSidebar = ({
                   Switch to {theme === "dark" ? "Light" : "Dark"} Theme
                 </span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onLogout}>
+              <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

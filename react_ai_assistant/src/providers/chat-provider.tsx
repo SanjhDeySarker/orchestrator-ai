@@ -1,8 +1,10 @@
 import { ReactNode, useCallback } from "react";
 import { User } from "stream-chat";
 import { Chat, useCreateChatClient } from "stream-chat-react";
+import { Navigate } from "react-router-dom";
 import { LoadingScreen } from "../components/loading-screen";
 import { useTheme } from "../hooks/use-theme";
+import { useAuth } from "./AuthProvider";
 
 interface ChatProviderProps {
   user: User;
@@ -16,8 +18,13 @@ if (!apiKey) {
   throw new Error("Missing VITE_STREAM_API_KEY in .env file");
 }
 
-export const ChatProvider = ({ user, children }: ChatProviderProps) => {
+export const ChatProvider = ({ children }: Omit<ChatProviderProps, 'user'>) => {
+  const { user } = useAuth();
   const { theme } = useTheme();
+
+  if (!user) {
+    return <Navigate to="/signin" />;
+  }
 
   /**
    * Token provider function that fetches authentication tokens from our backend.

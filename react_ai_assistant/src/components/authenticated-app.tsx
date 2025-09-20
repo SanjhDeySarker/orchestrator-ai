@@ -24,7 +24,7 @@ interface AuthenticatedAppProps {
 }
 
 export const AuthenticatedApp = ({ user, onLogout }: AuthenticatedAppProps) => (
-  <ChatProvider user={user}>
+  <ChatProvider>
     <AuthenticatedCore user={user} onLogout={onLogout} />
   </ChatProvider>
 );
